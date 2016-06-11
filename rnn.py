@@ -37,9 +37,9 @@ class RNNModel(object):
 
         """ set up loss """
         # [n_steps, batch_size, rnn_hidden_size]
-        outputs = tf.transpose(self._outputs, [1, 0, 2])
+        # outputs = tf.transpose(self._outputs, [1, 0, 2])
         # [n_steps * batch_size, rnn_hidden_size]
-        self.outputs = tf.reshape(outputs, [-1, rnn_hidden_size])
+        self.outputs = tf.reshape(self._outputs, [-1, rnn_hidden_size])
         # [n_steps * batch_size, vocab_size]
         self.logits = tf.matmul(self.outputs, self.softmax_w) + self.softmax_b
         # [n_steps * batch_size, vocab_size]
@@ -52,10 +52,19 @@ class RNNModel(object):
         # [1]
         self.cost = tf.reduce_sum(self.loss) / tf.to_float(batch_size) / tf.to_float(n_steps)
 
-        # self.lr = tf.Variable(0.0, trainable=False)
+        self.lr = 0.03 # tf.Variable(0.0, trainable=False)
+        # tvars = tf.trainable_variables()
+        # grads, _ = tf.clip_by_global_norm(tf.gradients(self.cost, tvars),
+                # 5.0)
+        # grads = tf.gradients(self.cost, tvars)
+        # self.optimizer = tf.train.AdamOptimizer(self.lr)
+        # self.train_op = self.optimizer.apply_gradients(zip(grads, tvars))
+        # grads_and_vars = self.optimizer.compute_gradients(self.cost)
+        # self.train_op = self.optimizer.apply_gradients(grads_and_vars)
+        # print "kdfjkdfjdkfj", type(grads)
 
-        self.optimizer = tf.train.AdamOptimizer(0.1)
-        self.optimizer.minimize(self.cost)
+        self.optimizer = tf.train.AdamOptimizer(self.lr)
+        self.train_op = self.optimizer.minimize(self.cost)
 
     def step(self, session, input_ids, target_ids, verbose=False):
         feed_dict = {
@@ -75,7 +84,7 @@ class RNNModel(object):
             print 'softmax_w', softmax_w.shape
             print 'softmax_b', softmax_b.shape
         else:
-            cost = session.run([self.cost], feed_dict=feed_dict)
+            cost, _ = session.run([self.cost, self.train_op], feed_dict=feed_dict)
         return cost
 
 
@@ -101,8 +110,8 @@ def test():
                 list_of_costs.append(model.step(sess, x, y))
                 if idx % 100 == 0:
                     print "cost", np.mean(list_of_costs)
-                    print "x", ''.join([rev_vocab[i] for i in x[0]])
-                    print "y", ''.join([rev_vocab[i] for i in y[0]])
+                    # print "x", ''.join([rev_vocab[i] for i in x[0]])
+                    # print "y", ''.join([rev_vocab[i] for i in y[0]])
                     list_of_costs = []
 
 
