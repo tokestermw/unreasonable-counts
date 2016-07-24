@@ -16,14 +16,22 @@ _DIGIT_RE = re.compile(r"\d")
 MAX_NGRAM_ORDER = 5
 SKIP = 1
 
+OOV_ID = 0  # padding should be 0
+
 class DataConfig:
     token_type = "char"  # [char, word]
 
 
-def loop_data(data_path=DATA_PATH):
+def loop_data(data_path=DATA_PATH, p=0.01):
     with io.open(data_path, 'r', encoding='utf8') as f:
+        entire_text = f.read()
+        length_text = len(entire_text)
+        split = int((1 - p) * length_text)
+        train_text = entire_text[:split]
+        valid_text = entire_text[split:]
+
         if DataConfig.token_type == "char":
-            return f.read()
+            return train_text, valid_text
         # elif DataConfig.token_type == "word":
             # return f.readlines()
 
@@ -62,7 +70,8 @@ def build_vocabulary(text):
     for t in tokenize(text):
         counts[t] += 1
 
-    vocab = {k: idx for idx, (k, v) in enumerate(counts.most_common())}
+    vocab = {k: idx + 1 for idx, (k, v) in enumerate(counts.most_common())}
+    vocab["OOV"] = OOV_ID
     rev_vocab = {v: k for k, v in vocab.iteritems()}
     return vocab, rev_vocab
 
@@ -72,14 +81,17 @@ def vectorize(text, vocab):
         tokenize = char_tokenize
     elif DataConfig.token_type == "word":
         tokenize = word_tokenize
-    ids = [vocab[t] for t in tokenize(text)]
+    ids = [vocab.get(t, "OOV") for t in tokenize(text)]
     return np.array(ids)
 
 
 def batchify(text, vocab, batch_size, n_steps):
     n_plus_one = n_steps + 1
     N = len(text)
+    skip = 10
     for i in xrange(0, N, batch_size * n_plus_one):
+        if i % skip != 0:
+            continue
         partial_text = vectorize(text[i : i + batch_size * n_plus_one], vocab)
         if len(partial_text) != batch_size * n_plus_one:
             continue # ignore for now
@@ -93,19 +105,21 @@ def test(verbose=True):
     batch_size = 32
     n_steps = 20
 
-    text = loop_data()
-    vocab, rev_vocab = build_vocabulary(text)
+    train_text, valid_text = loop_data()
+    vocab, rev_vocab = build_vocabulary(train_text)
     print len(vocab)
     print sorted(vocab.iteritems(), key=lambda x: x[1])[:50]
 
-    for x, y in batchify(text, vocab, batch_size, n_steps):
-        if verbose:
-            print 'x', ''.join(map(lambda c: rev_vocab[c], x[0]))
-            print 'y', ''.join(map(lambda c: rev_vocab[c], y[0]))
-        
-        print x.shape, y.shape
+    for epoch in range(5):
+        print "epoch", epoch
+        for x, y in batchify(train_text, vocab, batch_size, n_steps):
+            if verbose:
+                print 'x', ''.join(map(lambda c: rev_vocab[c], x[0]))
+                print 'y', ''.join(map(lambda c: rev_vocab[c], y[0]))
+
+                print x.shape, y.shape
         # break
 
 
 if __name__ == '__main__':
-    test()
+    test(verbose=True)
