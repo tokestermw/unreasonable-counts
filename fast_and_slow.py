@@ -5,7 +5,7 @@ http://arxiv.org/abs/1412.7753
 import tensorflow as tf
 from tensorflow.python.ops import array_ops
 from tensorflow.python.ops import variable_scope as vs
-from tensorflow.python.ops.math_ops import sigmoid
+from tensorflow.python.ops.math_ops import sigmoid, tanh
 
 
 class TraceRNNCell(tf.nn.rnn_cell.BasicRNNCell):
@@ -40,7 +40,7 @@ class SCRNNCell(tf.nn.rnn_cell.BasicLSTMCell):
         s, h = array_ops.split(1, 2, state)
       
       new_s = tf.nn.rnn_cell._linear([(1 - self._alpha) * inputs, self._alpha * s], self._num_units, True, scope="SlowLinear")  
-      new_h = sigmoid(tf.nn.rnn_cell._linear([inputs, new_s, h], self._num_units, True, scope="FastLinear"))
+      new_h = tanh(tf.nn.rnn_cell._linear([inputs, new_s, h], self._num_units, True, scope="FastLinear"))
 
       if self._state_is_tuple:
         new_state = tf.nn.rnn_cell.LSTMStateTuple(new_s, new_h)
