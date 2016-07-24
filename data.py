@@ -1,6 +1,7 @@
 import re
 import io
 import plac
+import pdb
 from collections import Counter
 
 import numpy as np
@@ -15,12 +16,16 @@ _DIGIT_RE = re.compile(r"\d")
 MAX_NGRAM_ORDER = 5
 SKIP = 1
 
+class DataConfig:
+    token_type = "char"  # [char, word]
+
 
 def loop_data(data_path=DATA_PATH):
     with io.open(data_path, 'r', encoding='utf8') as f:
-        return f.read()
-        # for text in f:
-            # yield text.strip()
+        if DataConfig.token_type == "char":
+            return f.read()
+        # elif DataConfig.token_type == "word":
+            # return f.readlines()
 
 
 def normalize(text):
@@ -49,8 +54,13 @@ def ignore(text):
 def build_vocabulary(text):
     counts = Counter()
     # for text in data:
-    for c in char_tokenize(text):
-        counts[c] += 1
+    if DataConfig.token_type == "char":
+        tokenize = char_tokenize
+    elif DataConfig.token_type == "word":
+        tokenize = word_tokenize
+
+    for t in tokenize(text):
+        counts[t] += 1
 
     vocab = {k: idx for idx, (k, v) in enumerate(counts.most_common())}
     rev_vocab = {v: k for k, v in vocab.iteritems()}
@@ -58,7 +68,11 @@ def build_vocabulary(text):
 
 
 def vectorize(text, vocab):
-    ids = [vocab[c] for c in char_tokenize(text)]
+    if DataConfig.token_type == "char":
+        tokenize = char_tokenize
+    elif DataConfig.token_type == "word":
+        tokenize = word_tokenize
+    ids = [vocab[t] for t in tokenize(text)]
     return np.array(ids)
 
 
@@ -75,20 +89,20 @@ def batchify(text, vocab, batch_size, n_steps):
         yield input_ids, target_ids
 
 
-def test():
+def test(verbose=True):
     batch_size = 32
-    n_steps = 10
+    n_steps = 20
 
     text = loop_data()
     vocab, rev_vocab = build_vocabulary(text)
     print len(vocab)
-    print sorted(vocab.iteritems(), key=lambda x: x[1])[:]
+    print sorted(vocab.iteritems(), key=lambda x: x[1])[:50]
 
     for x, y in batchify(text, vocab, batch_size, n_steps):
-        # for x_, y_ in zip(x, y):
-            # print x_, y_
-            # print ''.join([rev_vocab[i] for i in x_])
-            # print ''.join([rev_vocab[i] for i in y_])
+        if verbose:
+            print 'x', ''.join(map(lambda c: rev_vocab[c], x[0]))
+            print 'y', ''.join(map(lambda c: rev_vocab[c], y[0]))
+        
         print x.shape, y.shape
         # break
 
